@@ -18,10 +18,10 @@ resources:
     ja: "こんにちは！"
   file_count:
     _:
-      one: "You have %d file."
-      other: "You have %d files."
+      one: "You have %1$d file."
+      other: "You have %1$d files."
     ja:
-      other: "ファイルが %d 個あります。"
+      other: "ファイルが %1$d 個あります。"
 ```
 
 - `resources` is the root key for all resources.
@@ -44,7 +44,9 @@ deno run --allow-read --allow-write \
 ```
 
 If the execution is successful, the following XML files will be generated.
-The file will be overwritten if it already exists.
+
+> [!WARNING]
+> The file will be overwritten if it already exists.
 
 ```xml
 <!-- res/values/strings.xml -->
@@ -53,8 +55,8 @@ The file will be overwritten if it already exists.
 <resources>
     <string name="hello">Hello!</string>
     <plurals name="file_count">
-        <item quantity="one">You have %d file.</item>
-        <item quantity="other">You have %d files.</item>
+        <item quantity="one">You have %1$d file.</item>
+        <item quantity="other">You have %1$d files.</item>
     </plurals>
 </resources>
 ```
@@ -66,11 +68,11 @@ The file will be overwritten if it already exists.
 <resources>
     <string name="hello">こんにちは！</string>
     <plurals name="file_count">
-        <item quantity="other">ファイルが %d 個あります。</item>
+        <item quantity="other">ファイルが %1$d 個あります。</item>
     </plurals>
 </resources>
 ```
 
-# License
+## License
 
 MIT
