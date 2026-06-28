@@ -35,7 +35,8 @@ const escapeXml = (text: string): string =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, '\\"')
-    .replace(/'/g, "\\'");
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, "\\n");
 
 const buildStringElement = (name: string, value: string): string =>
   `    <string name="${name}">${escapeXml(value)}</string>`;
