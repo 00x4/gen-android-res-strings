@@ -18,7 +18,12 @@ type ResourceValue = StringValue | PluralValue;
 type LocaleMap = Record<string, ResourceValue>; // { _: ..., ja: ..., ... }
 type ResourcesMap = Record<string, LocaleMap>; // { hello: { _: ..., ja: ... }, ... }
 
+interface Config {
+  key_prefix?: string;
+}
+
 interface YamlRoot {
+  config?: Config;
   resources: ResourcesMap;
 }
 
@@ -79,7 +84,22 @@ const validateResources = (resources: ResourcesMap) => {
   }
 };
 
-const buildLocaleContents = (resources: ResourcesMap): Map<string, string> => {
+const applyKeyPrefix = (
+  resources: ResourcesMap,
+  prefix: string,
+): ResourcesMap => {
+  if (!prefix) return resources;
+  return Object.fromEntries(
+    Object.entries(resources).map(([key, val]) => [prefix + key, val]),
+  );
+};
+
+const mergeResources = (...maps: ResourcesMap[]): ResourcesMap =>
+  Object.assign({}, ...maps);
+
+const buildLocaleContents = (
+  resources: ResourcesMap,
+): Map<string, string> => {
   const localeSet = new Set<string>();
   for (const localeMap of Object.values(resources)) {
     for (const locale of Object.keys(localeMap)) {
@@ -109,28 +129,89 @@ const buildLocaleContents = (resources: ResourcesMap): Map<string, string> => {
   return result;
 };
 
+const listYamlFiles = async (dirPath: string): Promise<string[]> => {
+  const names: string[] = [];
+  for await (const entry of Deno.readDir(dirPath)) {
+    if (!entry.isFile) continue;
+    if (!/\.(yaml|yml)$/i.test(entry.name)) continue;
+    names.push(entry.name);
+  }
+  names.sort();
+  return names.map((name) => join(dirPath, name));
+};
+
+const loadAndMergeDir = async (dirPath: string): Promise<ResourcesMap> => {
+  const files = await listYamlFiles(dirPath);
+  if (files.length === 0) {
+    console.error(`Error: no YAML files found in "${dirPath}".`);
+    Deno.exit(1);
+  }
+  let merged: ResourcesMap = {};
+  for (const filePath of files) {
+    const root = parse(await Deno.readTextFile(filePath)) as YamlRoot;
+    if (!root.resources || typeof root.resources !== "object") {
+      console.error(
+        `Error: "${filePath}" must have a top-level "resources" object.`,
+      );
+      Deno.exit(1);
+    }
+    if (
+      root.config?.key_prefix !== undefined &&
+      typeof root.config.key_prefix !== "string"
+    ) {
+      console.error(
+        `Error: "${filePath}" config.key_prefix must be a string.`,
+      );
+      Deno.exit(1);
+    }
+    validateResources(root.resources);
+    const prefixed = applyKeyPrefix(
+      root.resources,
+      root.config?.key_prefix ?? "",
+    );
+    merged = mergeResources(merged, prefixed);
+  }
+  return merged;
+};
+
 const localeToValuesDir = (locale: string): string =>
   locale === "_" ? "values" : `values-${locale}`;
 
 const main = async (): Promise<void> => {
   const args = Deno.args;
   if (args.length !== 2) {
-    console.error("Usage: <script-file>.ts <yaml-file> <res-dir>");
+    console.error("Usage: <script-file>.ts <yaml-file-or-dir> <res-dir>");
     Deno.exit(1);
   }
-  const [yamlPath, resDir] = args;
+  const [inputPath, resDir] = args;
 
-  const yamlText = await Deno.readTextFile(yamlPath);
-  const root = parse(yamlText) as YamlRoot;
+  let resources: ResourcesMap;
 
-  if (!root.resources || typeof root.resources !== "object") {
-    console.error('Error: YAML must have a top-level "resources" object.');
-    Deno.exit(1);
+  const stat = await Deno.stat(inputPath);
+  if (stat.isDirectory) {
+    resources = await loadAndMergeDir(inputPath);
+  } else {
+    const root = parse(await Deno.readTextFile(inputPath)) as YamlRoot;
+
+    if (!root.resources || typeof root.resources !== "object") {
+      console.error('Error: YAML must have a top-level "resources" object.');
+      Deno.exit(1);
+    }
+
+    if (
+      root.config?.key_prefix !== undefined &&
+      typeof root.config.key_prefix !== "string"
+    ) {
+      console.error("Error: config.key_prefix must be a string.");
+      Deno.exit(1);
+    }
+
+    validateResources(root.resources);
+
+    resources = applyKeyPrefix(root.resources, root.config?.key_prefix ?? "");
   }
 
-  validateResources(root.resources);
-
-  const localeContents = buildLocaleContents(root.resources);
+  const localeContents = buildLocaleContents(resources);
 
   for (const [locale, xmlContent] of localeContents) {
     const valuesDir = join(resDir, localeToValuesDir(locale));
