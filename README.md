@@ -28,33 +28,14 @@ resources:
 - Each resource key (e.g., `hello`, `file_count`) can have a default value (`_`) and optional language-specific values (e.g., `ja` for Japanese).
 - Resource keys with child elements for plurals (e.g., `one`, `other`) are treated as Plurals.
 
-You can optionally add a `config` section to specify a key prefix:
-
-```yaml
-config:
-  key_prefix: "my_prefix_"
-resources:
-  hello:
-    _: "Hello!"
-    ja: "こんにちは！"
-```
-
-- `config.key_prefix` is prepended to every resource key in the generated XML (e.g., `my_prefix_hello`).
-- `config` and `key_prefix` are both optional. If omitted, keys are used as-is.
-
 ### Run the script
 
 ```sh
+# e.g.
 deno run --allow-read --allow-write \
   gen-android-res-strings.deno.ts \
-  <path-to.yaml> \
-  <path-to-res-dir>
-
-# e.g.
-# deno run --allow-read --allow-write \
-#   gen-android-res-strings.deno.ts \
-#   ./strings.yaml \
-#   ./androidApp/src/main/res
+  ./strings.yaml \           # 1st arg: input YAML file or directory
+  ./androidApp/src/main/res  # 2nd arg: output directory
 ```
 
 If the execution is successful, the following XML files will be generated.
@@ -86,6 +67,39 @@ If the execution is successful, the following XML files will be generated.
     </plurals>
 </resources>
 ```
+
+## Optional configuration
+
+### Key prefix
+
+You can optionally add a `config` section to specify a key prefix:
+
+```yaml
+config:
+  key_prefix: "my_prefix_"
+resources:
+  hello:
+    _: "Hello!"
+    ja: "こんにちは！"
+```
+
+- `config.key_prefix` is prepended to every resource key in the generated XML (e.g., `my_prefix_hello`).
+- `config` and `key_prefix` are both optional. If omitted, keys are used as-is.
+
+### Directory input
+
+```sh
+# e.g. directory input
+deno run --allow-read --allow-write \
+  gen-android-res-strings.deno.ts \
+  ./strings/ \               # 1st arg: input YAML directory
+  ./androidApp/src/main/res  # 2nd arg: output directory
+```
+
+- All `.yaml` and `.yml` files in that directory are processed in ascending filename order and merged into a single XML output.
+- Subdirectories are ignored.
+- Each file's `config` (including `key_prefix`) applies only to that file.
+- If the same generated key appears in multiple files, the value from the later file is used.
 
 ## License
 
