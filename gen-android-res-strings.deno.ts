@@ -18,7 +18,12 @@ type ResourceValue = StringValue | PluralValue;
 type LocaleMap = Record<string, ResourceValue>; // { _: ..., ja: ..., ... }
 type ResourcesMap = Record<string, LocaleMap>; // { hello: { _: ..., ja: ... }, ... }
 
+interface Config {
+  key_prefix?: string;
+}
+
 interface YamlRoot {
+  config?: Config;
   resources: ResourcesMap;
 }
 
@@ -79,7 +84,10 @@ const validateResources = (resources: ResourcesMap) => {
   }
 };
 
-const buildLocaleContents = (resources: ResourcesMap): Map<string, string> => {
+const buildLocaleContents = (
+  resources: ResourcesMap,
+  keyPrefix: string = "",
+): Map<string, string> => {
   const localeSet = new Set<string>();
   for (const localeMap of Object.values(resources)) {
     for (const locale of Object.keys(localeMap)) {
@@ -96,10 +104,11 @@ const buildLocaleContents = (resources: ResourcesMap): Map<string, string> => {
       const value = localeMap[locale];
       if (value === undefined) continue;
 
+      const prefixedName = keyPrefix + name;
       if (typeof value === "string") {
-        elements.push(buildStringElement(name, value));
+        elements.push(buildStringElement(prefixedName, value));
       } else {
-        elements.push(buildPluralsElement(name, value));
+        elements.push(buildPluralsElement(prefixedName, value));
       }
     }
 
@@ -128,9 +137,18 @@ const main = async (): Promise<void> => {
     Deno.exit(1);
   }
 
+  if (
+    root.config?.key_prefix !== undefined &&
+    typeof root.config.key_prefix !== "string"
+  ) {
+    console.error("Error: config.key_prefix must be a string.");
+    Deno.exit(1);
+  }
+
   validateResources(root.resources);
 
-  const localeContents = buildLocaleContents(root.resources);
+  const keyPrefix = root.config?.key_prefix ?? "";
+  const localeContents = buildLocaleContents(root.resources, keyPrefix);
 
   for (const [locale, xmlContent] of localeContents) {
     const valuesDir = join(resDir, localeToValuesDir(locale));

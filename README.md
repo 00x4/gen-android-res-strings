@@ -28,6 +28,20 @@ resources:
 - Each resource key (e.g., `hello`, `file_count`) can have a default value (`_`) and optional language-specific values (e.g., `ja` for Japanese).
 - Resource keys with child elements for plurals (e.g., `one`, `other`) are treated as Plurals.
 
+You can optionally add a `config` section to specify a key prefix:
+
+```yaml
+config:
+  key_prefix: "my_prefix_"
+resources:
+  hello:
+    _: "Hello!"
+    ja: "こんにちは！"
+```
+
+- `config.key_prefix` is prepended to every resource key in the generated XML (e.g., `my_prefix_hello`).
+- `config` and `key_prefix` are both optional. If omitted, keys are used as-is.
+
 ### Run the script
 
 ```sh
